@@ -21,7 +21,11 @@ use tokio::io::{self, AsyncBufReadExt, AsyncReadExt};
 #[tokio::main]
 async fn main() {
     // trial_2_using_piped().await;
-    trial_3_using_env_vars().await;
+    // trial_3_using_env_vars().await;
+    // trail_4_ensuirng_command_security().await;
+    // trial_5_using_shell_words().await;
+    // trial_6_test_single_binary_rule().await;
+    trial_7_test_command_raises_error().await;
 }
 
 async fn trial_1(){
@@ -112,4 +116,58 @@ async fn trial_3_using_env_vars(){
     let n = stdout.read(&mut response_buffer).await.expect("Failed to read from stdout");
 
     println!("Child process output: {}", String::from_utf8_lossy(&response_buffer[..n]));
+}
+
+
+async fn trail_4_ensuirng_command_security() {
+    let mut output = Command::new("/bin/python3")
+        .arg("test.py")
+        .env_clear()
+        .env("VAR_DRASI", "Hello from Rust env var")
+        .spawn()
+        .expect("Failed to execute command");
+
+    let _ = output.wait().await.expect("Failed to wait for child process");
+}
+
+async fn trial_5_using_shell_words(){
+    let command = "ls -l /tmp && rm -rf test.txt";
+    let args = shell_words::split(command).expect("Failed to parse command");
+
+    println!("Parsed command: {:?}", args);
+
+    let output = Command::new(&args[0])
+        .args(&args[1..])
+        .output()
+        .await
+        .expect("Failed to execute command");
+
+    println!("Command output:\n{}", String::from_utf8_lossy(&output.stdout));
+}
+
+async fn trial_6_test_single_binary_rule(){
+    let commands = "sleep 5 && echo 'Done sleeping'";
+
+    let output = Command::new(commands)
+        .spawn()
+        .expect("Failed to execute command");
+}
+
+async fn trial_7_test_command_raises_error(){
+    let command = "/bin/python3 test.py";
+
+    let args = shell_words::split(command).expect("Failed to parse command");
+
+    let mut output = Command::new(&args[0])
+        .args(&args[1..])
+        .env("VAR_DRASI", "Hello from Rust env var")
+        .spawn()
+        .expect("Failed to execute command");
+
+    let std_out = output.wait().await;
+
+    match std_out {
+        Ok(status) => println!("Process exited with status: {}", status),
+        Err(e) => eprintln!("Error waiting for process: {}", e),
+    }
 }
